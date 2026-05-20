@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lemon-asr"
+version = "0.1.0"
+description = "Local-first ASR pipeline pairing a faster-whisper OpenAI-compat server with a Glasp-markdown ingester (Strix Halo)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "lemon-asr contributors" }]
+keywords = [
+  "asr",
+  "speech-to-text",
+  "whisper",
+  "faster-whisper",
+  "youtube",
+  "transcripts",
+  "openai-compatible",
+  "strix-halo",
+  "local-first",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Core (glasp ingester) is stdlib-only. The ASR server has heavy deps — see [server] extra.
+dependencies = []
+
+[project.optional-dependencies]
+server = [
+  "faster-whisper>=1.2.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+  "python-multipart>=0.0.20",
+  "requests>=2.32",
+]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+  "mypy>=1.10",
+]
+
+[project.scripts]
+lemon-asr-server = "lemon_asr.server:main"
+lemon-asr-ingest = "lemon_asr.glasp:main"
+
+[project.urls]
+Homepage = "https://github.com/bong-water-water-bong/lemon-asr"
+Issues = "https://github.com/bong-water-water-bong/lemon-asr/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]  # line length is handled by formatter
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI dependency-injection idiom: File(...) / Form(...) as default values
+# is the recommended pattern, but trips B008 (function call in defaults).
+"src/lemon_asr/server.py" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+strict = false  # core glasp module only; server is best-effort due to faster-whisper stubs
+files = ["src/lemon_asr/glasp.py"]
