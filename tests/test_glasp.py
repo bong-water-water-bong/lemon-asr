@@ -149,3 +149,16 @@ def test_sanitize_drops_unsafe_chars() -> None:
     assert glasp.sanitize("Hello / World: A Test!") == "Hello-World-A-Test"
     assert glasp.sanitize("a" * 200).startswith("aaa")
     assert len(glasp.sanitize("a" * 200)) <= 90
+
+
+def test_sanitize_returns_untitled_for_all_special_chars() -> None:
+    # All-punctuation input collapses to empty after stripping dashes;
+    # the "or 'untitled'" fallback must kick in so output paths are never empty.
+    assert glasp.sanitize("!!!???///") == "untitled"
+    assert glasp.sanitize("") == "untitled"
+
+
+def test_find_video_id_from_bare_stem() -> None:
+    # A file named exactly <11-char-id>.md with no URL in the body and no
+    # __ separator still yields the correct video ID via the stem fallback.
+    assert glasp.find_video_id("no url here", f"{FAKE_ID}.md") == FAKE_ID
