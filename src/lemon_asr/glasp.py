@@ -126,6 +126,18 @@ def parse_segments(body: str) -> list[dict]:
     return out
 
 
+def total_duration(segments: list[dict]) -> float:
+    """Return total transcript duration in seconds.
+
+    Computed as the difference between the last segment's end and the
+    first segment's start, so gaps between segments are included.
+    Returns 0.0 for an empty segment list.
+    """
+    if not segments:
+        return 0.0
+    return segments[-1]["end"] - segments[0]["start"]
+
+
 def sanitize(s: str) -> str:
     s = re.sub(r"[^\w.-]+", "-", s).strip("-")
     return s[:90] or "untitled"

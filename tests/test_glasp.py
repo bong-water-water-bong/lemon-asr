@@ -162,3 +162,28 @@ def test_find_video_id_from_bare_stem() -> None:
     # A file named exactly <11-char-id>.md with no URL in the body and no
     # __ separator still yields the correct video ID via the stem fallback.
     assert glasp.find_video_id("no url here", f"{FAKE_ID}.md") == FAKE_ID
+
+
+def test_total_duration_empty() -> None:
+    assert glasp.total_duration([]) == 0.0
+
+
+def test_total_duration_single_segment() -> None:
+    segs = [{"text": "Hello.", "start": 10.0, "end": 12.5}]
+    assert glasp.total_duration(segs) == pytest.approx(2.5)
+
+
+def test_total_duration_multiple_segments_includes_gaps() -> None:
+    # Three segments: [0-5], [10-15], [20-25].  Total span = 25, not sum of durations (15).
+    segs = [
+        {"text": "A", "start": 0.0, "end": 5.0},
+        {"text": "B", "start": 10.0, "end": 15.0},
+        {"text": "C", "start": 20.0, "end": 25.0},
+    ]
+    assert glasp.total_duration(segs) == pytest.approx(25.0)
+
+
+def test_total_duration_from_parsed_transcript() -> None:
+    segs = glasp.parse_segments(_glasp_md())
+    # Transcript spans [0:00] to [5:42]; total duration should be ≥ 342 s.
+    assert glasp.total_duration(segs) >= 342.0
