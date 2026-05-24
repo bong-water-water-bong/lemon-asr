@@ -1,3 +1,5 @@
+> **Start here:** Read `docs/wiki/README.md` before any work on this project.
+
 # Ruflo — Claude Code Configuration
 
 ## Rules
