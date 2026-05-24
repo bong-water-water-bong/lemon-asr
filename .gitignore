@@ -33,3 +33,13 @@ htmlcov/
 *.vtt
 *.srt
 *.opus
+
+# Ruflo runtime (generated, not for git)
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+.claude-flow/swarm/
+.claude-flow/learning/
+.claude-flow/metrics/
+.claude-flow/daemon.pid
+.claude-flow/daemon-state.json
