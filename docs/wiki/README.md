@@ -1,29 +1,28 @@
-# lemon-asr — Wiki
+# Project Wiki: lemon-asr
 
-> Local-first ASR pipeline for YouTube transcripts and arbitrary audio, built for the AMD Strix Halo workstation.
+## Mission
+Local-first ASR pipeline for YouTube transcripts and arbitrary audio, built for the AMD Strix Halo workstation. It provides a stable, OpenAI-compatible transcription endpoint as a workaround for segfaults in other backends.
 
-## Current State
+## Architecture
+- **lemon-asr-server:** An OpenAI-compatible `POST /v1/audio/transcriptions` HTTP server built with FastAPI and backed by `faster-whisper`.
+- **lemon-asr-ingest:** A standard library-only Python tool for converting Glasp markdown transcripts into a uniform `txt`/`srt`/`json` layout.
+- **Backend:** Uses CTranslate2 (via `faster-whisper`). Defaults to `large-v3-turbo` on CPU with `int8` quantization.
+- **Hardware Target:** Optimized for AMD Strix Halo (16 Zen-5 cores), but works on any x86_64 Linux system.
 
-v0.1.0 scaffold — both pieces are functional:
+## Agent Handoff
+- **Setup:** Install with `pip install -e ".[server,dev]"`.
+- **Running Server:** Start with `lemon-asr-server` (listens on `:8004`).
+- **Running Ingest:** Use `lemon-asr-ingest` to process Glasp markdown files.
+- **Testing:** 
+  - `GET /health` for server status.
+  - Manual verification via `curl` (see main README for examples).
+  - Pytest suite for the ingester (`tests/`).
+- **Hot Paths:** `src/lemon_asr/server.py` (FastAPI/Whisper integration) and `src/lemon_asr/glasp.py` (ingestion logic).
+- **Current Priorities:** Adding `server.py` tests and fixing hardcoded local output paths.
 
-- **`lemon-asr-server`** is working and tested in production against IBM Technology audio. Runs on `:8004`, handles `POST /v1/audio/transcriptions` with all five `response_format` values (`json`, `verbose_json`, `text`, `srt`, `vtt`), and includes edge-trim post-processing.
-- **`lemon-asr-ingest`** (Glasp ingester) is working, tested via pytest, and handles the known timestamp formats from Glasp exports.
-- CI runs on Python 3.11 / 3.12 / 3.13 with ruff linting and pytest.
-- No test coverage for `server.py` — the HTTP layer is validated manually via `curl`.
-- YouTube audio download tooling is explicitly out of scope for this repo (see `docs/youtube-bot-wall.md`).
-
-## Start Here
-
-- [[architecture]] — server, Glasp ingester, faster-whisper backend, fw-server integration, env vars, output format, gotchas
-
-## Open Threads
-
-- **No `server.py` tests.** The HTTP transcription endpoint has no pytest coverage. A test suite using `httpx` + FastAPI's `TestClient` and a short synthetic WAV fixture would close this gap.
-- **`language` field is hardcoded to `"unknown"` in Glasp JSON output.** The ingester writes `"language": "unknown"` in every JSON file because Glasp markdown does not carry language metadata. The server correctly propagates `info.language` from faster-whisper, but the two output paths are inconsistent.
-- **Default output path is IBM-Technology-specific.** `LEMON_ASR_OUTPUT_DIR` defaults to `/home/bcloud/Desktop/IBMTechnology-transcripts/last-6-months/transcripts/`. This is a machine-local, content-specific path baked into the source. Future work should either make the default truly generic (e.g. `~/transcripts/`) or require the env var to be set explicitly.
-
-## Article Index
-
-| Article | What it covers |
-|---------|----------------|
-| [[architecture]] | HTTP server mechanics, Glasp ingester pipeline, faster-whisper backend, env vars, output format, key design decisions, and operational gotchas |
+## Decisions & Gotchas
+- **CPU vs GPU:** CTranslate2 lacks ROCm support, so it runs on CPU. Strix Halo's 16 cores are sufficient for 8x realtime at `int8`.
+- **Edge-Trimming:** Post-processes results to remove low-confidence fragments (false starts/trailing silence).
+- **Glasp Limitations:** Ingested files have language set to `"unknown"` as Glasp metadata lacks this field.
+- **Local Paths:** `LEMON_ASR_OUTPUT_DIR` currently defaults to a machine-specific path (`/home/bcloud/...`).
+- **Lemond Workaround:** Created because the `lemond` whisper backend segfaulted on Vulkan for Strix Halo.
