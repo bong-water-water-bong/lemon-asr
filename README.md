@@ -8,6 +8,8 @@
 > Local-first ASR pipeline for YouTube transcripts and arbitrary audio,
 > built for the AMD Strix Halo workstation.
 
+**→ [Project Wiki](docs/wiki/README.md)** — architecture, decisions, gotchas, and agent onboarding.
+
 `lemon-asr` is a small, two-piece toolkit:
 
 1. **`lemon-asr-server`** — an OpenAI-compatible
