@@ -2,18 +2,26 @@ name: qodo-merge
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   qodo-merge:
+    name: Qodo PR Review
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-      contents: read
+    if: ${{ github.event.sender.type != 'Bot' }}
     steps:
-      - name: Qodo Merge Review
-        uses: qodo-ai/qodo-merge@v1
+      - name: PR Agent review (Qodo)
+        uses: the-pr-agent/pr-agent@main
         env:
-          QODO_API_KEY: ${{ secrets.QODO_API_KEY }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.QODO_API_KEY }}
+          config.model: "openai/gpt-4o"
+          config.fallback_models: '["openai/gpt-4o"]'
+          pr_reviewer.require_score_review: "false"
+          pr_reviewer.num_code_suggestions: "4"
