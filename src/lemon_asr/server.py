@@ -44,37 +44,66 @@ Env vars:
 import asyncio
 import os
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-MODEL_NAME = os.environ.get("FW_MODEL", "large-v3-turbo")
-DEVICE = os.environ.get("FW_DEVICE", "cpu")
-COMPUTE_TYPE = os.environ.get("FW_COMPUTE_TYPE", "int8")
-BEAM_SIZE = int(os.environ.get("FW_BEAM_SIZE", "5"))
-VAD_FILTER = os.environ.get("FW_VAD_FILTER", "").lower() in ("1", "true", "yes")
-EDGE_TRIM_LOGPROB = float(os.environ.get("FW_EDGE_TRIM_LOGPROB", "-0.5"))
-EDGE_TRIM_MAX_WORDS = int(os.environ.get("FW_EDGE_TRIM_MAX_WORDS", "2"))
-HOST = os.environ.get("FW_HOST", "127.0.0.1")
-PORT = int(os.environ.get("FW_PORT", "8004"))
 
-app = FastAPI(title="faster-whisper OpenAI shim")
+def _env_str(key: str, default: str) -> str:
+    return os.environ.get(key, default)
+
+
+def _env_int(key: str, default: int) -> int:
+    val = os.environ.get(key, None)
+    return int(val) if val is not None else default
+
+
+def _env_float(key: str, default: float) -> float:
+    val = os.environ.get(key, None)
+    return float(val) if val is not None else default
+
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    val = os.environ.get(key, None)
+    if val is None:
+        return default
+    return val.lower() in ("1", "true", "yes")
+
+
+MODEL_NAME = _env_str("FW_MODEL", "large-v3-turbo")
+DEVICE = _env_str("FW_DEVICE", "cpu")
+COMPUTE_TYPE = _env_str("FW_COMPUTE_TYPE", "int8")
+BEAM_SIZE = _env_int("FW_BEAM_SIZE", 5)
+VAD_FILTER = _env_bool("FW_VAD_FILTER", False)
+EDGE_TRIM_LOGPROB = _env_float("FW_EDGE_TRIM_LOGPROB", -0.5)
+EDGE_TRIM_MAX_WORDS = _env_int("FW_EDGE_TRIM_MAX_WORDS", 2)
+HOST = _env_str("FW_HOST", "127.0.0.1")
+PORT = _env_int("FW_PORT", 8004)
+MAX_UPLOAD_BYTES = _env_int("FW_MAX_UPLOAD_BYTES", 25 * 1024 * 1024)
+
+ALLOWED_RESPONSE_FORMATS: list[str] = ["json", "text", "srt", "vtt", "verbose_json"]
 
 # Loaded at startup; protected by a lock since faster-whisper's transcribe()
 # isn't reentrant on a single model instance.
-_model = None
+_model: Any | None = None
 _lock = asyncio.Lock()
 
 
-@app.on_event("startup")
-async def _load_model() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> Any:
     global _model
     from faster_whisper import WhisperModel
 
     print(f"[fw-server] loading {MODEL_NAME} on {DEVICE} ({COMPUTE_TYPE})", flush=True)
     _model = WhisperModel(MODEL_NAME, device=DEVICE, compute_type=COMPUTE_TYPE)
     print("[fw-server] ready", flush=True)
+    yield
+
+
+app = FastAPI(title="faster-whisper OpenAI shim", lifespan=lifespan)
 
 
 @app.get("/v1/models")
@@ -102,12 +131,22 @@ async def transcribe(
     prompt: str | None = Form(None),
     temperature: float = Form(0.0),
 ):
+    if response_format not in ALLOWED_RESPONSE_FORMATS:
+        raise HTTPException(
+            400,
+            f"Invalid response_format '{response_format}'. Must be one of: {', '.join(ALLOWED_RESPONSE_FORMATS)}",
+        )
+
     if _model is None:
         raise HTTPException(503, "Model not loaded yet")
 
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"File too large ({len(contents)} bytes). Max: {MAX_UPLOAD_BYTES} bytes")
+
     suffix = Path(file.filename or "audio").suffix or ".bin"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
-        tmp.write(await file.read())
+        tmp.write(contents)
         tmp.flush()
 
         async with _lock:
