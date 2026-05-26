@@ -67,7 +67,10 @@ def _env_float(key: str, default: float) -> float:
 
 
 def _env_bool(key: str, default: bool = False) -> bool:
-    return os.environ.get(key, "").lower() in ("1", "true", "yes")
+    val = os.environ.get(key, None)
+    if val is None:
+        return default
+    return val.lower() in ("1", "true", "yes")
 
 
 MODEL_NAME = _env_str("FW_MODEL", "large-v3-turbo")

@@ -254,6 +254,10 @@ def test_env_bool_false_by_default(server: Any):
     assert server._env_bool("FW_NONEXISTENT_XYZ", False) is False
 
 
+def test_env_bool_true_by_default(server: Any):
+    assert server._env_bool("FW_NONEXISTENT_XYZ", True) is True
+
+
 def test_env_bool_true_values(server: Any, monkeypatch: Any):
     for val in ("1", "true", "TRUE", "yes", "YES"):
         monkeypatch.setenv("_TEST_BOOL", val)
