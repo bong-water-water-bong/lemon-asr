@@ -1,0 +1,31 @@
+[pr_agent]
+model = "opencode/glm-5.2"
+model_turbo = "opencode/glm-5.2"
+fallback_models = ["deepseek/deepseek-chat", "openai/gpt-4o-mini"]
+verbosity_level = 2
+publish_output = true
+publish_output_progress = false
+
+[pr_agent.pr_reviewer]
+require_score_review = true
+require_tests_review = true
+num_ais = 3
+inline_code_comments = true
+automatic_review = false
+persistent_comment = false
+
+[pr_agent.pr_description]
+publish_labels = true
+enable_help_text = false
+
+[pr_agent.pr_code_suggestions]
+num_code_suggestions = 4
+
+[pr_agent.pr_update_changelog]
+push_changelog_changes = true
+
+[pr_agent.pr_help_message]
+enable_help_text = false
+
+[config]
+ignore_pr_labels = []
